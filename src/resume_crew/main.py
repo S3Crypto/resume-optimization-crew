@@ -8,11 +8,11 @@ warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 
 def run():
     """
-    Run the resume optimization crew.
+    Run the resume optimization crew. 
     """
     inputs = {
-        'job_url': 'https://www.mckinsey.com/careers/search-jobs/jobs/associate-15178',
-        'company_name': 'Mckinsey & Co.'
+        'job_url': 'https://www.titansoft.com/en/career/39',
+        'company_name': 'Titansoft'
     }
     ResumeCrew().crew().kickoff(inputs=inputs)
 

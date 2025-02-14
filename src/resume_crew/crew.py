@@ -1,7 +1,7 @@
 from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
 from crewai_tools import SerperDevTool, ScrapeWebsiteTool
-from crewai.knowledge.source.pdf_knowledge_source import PDFKnowledgeSource
+from crewai.knowledge.source.json_knowledge_source import JSONKnowledgeSource
 from .models import (
     JobRequirements,
     ResumeOptimization,
@@ -11,23 +11,17 @@ from .models import (
 
 @CrewBase
 class ResumeCrew():
-    """ResumeCrew for resume optimization and interview preparation"""
+    """ResumeCrew for building a new ATS-optimized CV from scratch based on a job spec and interview preparation."""
 
     agents_config = 'config/agents.yaml'
     tasks_config = 'config/tasks.yaml'
-
     def __init__(self) -> None:
-        """Sample resume PDF for testing from https://www.hbs.edu/doctoral/Documents/job-market/CV_Mohan.pdf"""
-        self.resume_pdf = PDFKnowledgeSource(file_paths="CV_Mohan.pdf")
-
-    @agent
-    def resume_analyzer(self) -> Agent:
-        return Agent(
-            config=self.agents_config['resume_analyzer'],
-            verbose=True,
-            llm=LLM("o1"),
-            knowledge_sources=[self.resume_pdf]
-        )
+        """
+        Initialize with candidate data from a resume.json file.
+        The JSON follows the expected schema including personal information,
+        work experience, education, skills, and projects.
+        """
+        self.resume_json = JSONKnowledgeSource(file_paths="resume.json")
     
     @agent
     def job_analyzer(self) -> Agent:
@@ -35,7 +29,7 @@ class ResumeCrew():
             config=self.agents_config['job_analyzer'],
             verbose=True,
             tools=[ScrapeWebsiteTool()],
-            llm=LLM("o1")
+            llm=LLM("gpt-4o")
         )
 
     @agent
@@ -44,16 +38,32 @@ class ResumeCrew():
             config=self.agents_config['company_researcher'],
             verbose=True,
             tools=[SerperDevTool()],
-            llm=LLM("o1"),
-            knowledge_sources=[self.resume_pdf]
+            llm=LLM("gpt-4o"),
+            knowledge_sources=[self.resume_json]
         )
 
     @agent
     def resume_writer(self) -> Agent:
+        """
+        Write an entirely new CV in markdown format from scratch.
+        The generated CV will explicitly reference the job specification
+        """
         return Agent(
             config=self.agents_config['resume_writer'],
             verbose=True,
-            llm=LLM("o1")
+            llm=LLM("gpt-4o"),
+            knowledge_sources=[self.resume_json]
+        )
+
+    @agent
+    def resume_analyzer(self) -> Agent:
+        """
+        Analyze the candidate’s draft resume
+        """
+        return Agent(
+            config=self.agents_config['resume_analyzer'],
+            verbose=True,
+            llm=LLM("gpt-4o")
         )
 
     @agent
@@ -61,7 +71,7 @@ class ResumeCrew():
         return Agent(
             config=self.agents_config['report_generator'],
             verbose=True,
-            llm=LLM("o1")
+            llm=LLM("gpt-4o")
         )
 
     @task
@@ -70,14 +80,6 @@ class ResumeCrew():
             config=self.tasks_config['analyze_job_task'],
             output_file='output/job_analysis.json',
             output_pydantic=JobRequirements
-        )
-
-    @task
-    def optimize_resume_task(self) -> Task:
-        return Task(
-            config=self.tasks_config['optimize_resume_task'],
-            output_file='output/resume_optimization.json',
-            output_pydantic=ResumeOptimization
         )
 
     @task
@@ -92,7 +94,14 @@ class ResumeCrew():
     def generate_resume_task(self) -> Task:
         return Task(
             config=self.tasks_config['generate_resume_task'],
-            output_file='output/optimized_resume.md'
+            output_file='output/draft_resume.md'
+        )
+
+    @task
+    def optimize_resume_task(self) -> Task:
+        return Task(
+            config=self.tasks_config['optimize_resume_task'],
+            output_file='output/final_resume.json'
         )
 
     @task
@@ -109,5 +118,5 @@ class ResumeCrew():
             tasks=self.tasks,
             verbose=True,
             process=Process.sequential,
-            knowledge_sources=[self.resume_pdf]
+            knowledge_sources=[self.resume_json]
         )

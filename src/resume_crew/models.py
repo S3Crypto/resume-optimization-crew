@@ -7,7 +7,7 @@ class SkillScore(BaseModel):
     match_level: confloat(ge=0, le=1) = Field(description="How well the candidate's experience matches (0-1)")
     years_experience: Optional[float] = Field(description="Years of experience with this skill", default=None)
     context_score: confloat(ge=0, le=1) = Field(
-        description="How relevant the skill usage context is to the job requirements",
+        description="How relevant the skill usage context is to the job requirements.",
         default=0.5
     )
 
